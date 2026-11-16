@@ -15,18 +15,47 @@ def create_database():
                 merchant TEXT,
                 city TEXT,
                 device TEXT,
-                timestamp TEXT)""")
-
+                timestamp TEXT
+            )
+        """)
         #create quarantine table to store rejected transactions
+    
         conn.execute("""
             CREATE TABLE IF NOT EXISTS quarantine_transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 transaction_id TEXT,
                 raw_data TEXT,
                 rejection_reason TEXT NOT NULL,
-                rejection_at TEXT NOT NULL)
+                rejection_at TIMESTAMP NOT NULL)
         """)
 
-    print("Database and quarantine tables are ready at : ", DB_PATH)
+        columns = {
+            row[1]
+            for row in conn.execute(
+                "PRAGMA table_info(quarantine_transactions)"
+            )
+        }
+        if "rejected_at" not in columns:
+            conn.execute(
+                "ALTER TABLE quarantine_transactions ADD COLUMN rejection_at TIMESTAMP"
+            )
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS transaction_features (
+                transaction_id TEXT PRIMARY KEY,
+                customer_id TEXT NOT NULL,
+                amount REAL NOT NULL,
+                trx_amt_5m INTEGER NOT NULL,
+                amount_sum_1h REAL NOT NULL,
+                avr_prior_amt REAL NOT NULL,
+                amount_ratio REAL NOT NULL,
+                city_change INTEGER NOT NULL,
+                feature_timestamp TEXT NOT NULL,
+                FOREIGN KEY (transaction_id)
+                    REFERENCES transactions(transaction_id)
+            )
+        """)
+    
+    print("Database and quarantine tables are ready at:", DB_PATH)
 if __name__ == "__main__":
     create_database()
